@@ -1,0 +1,60 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create(config('reportable.table_names.reports', 'reports'), function (Blueprint $table) {
+            match (config('reportable.id_type', 'id')) {
+                'uuid' => $table->uuid('id')->primary(),
+                'ulid' => $table->ulid('id')->primary(),
+                default => $table->id(),
+            };
+
+            $this->morphColumns($table, 'reporter');
+            $this->morphColumns($table, 'reportable');
+
+            $table->string('reason')->index();
+            $table->string('status')->default('pending')->index();
+            $table->json('metadata')->nullable();
+            $table->text('internal_notes')->nullable();
+
+            $this->morphColumns($table, 'reviewed_by', nullable: true);
+            $table->timestamp('reviewed_at')->nullable();
+            $table->timestamp('resolved_at')->nullable();
+            $table->timestamp('closed_at')->nullable();
+
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['reportable_type', 'reportable_id', 'status']);
+            $table->index(['reporter_type', 'reporter_id', 'reportable_type', 'reportable_id'], 'reports_reporter_reportable_index');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists(config('reportable.table_names.reports', 'reports'));
+    }
+
+    protected function morphColumns(Blueprint $table, string $name, bool $nullable = false): void
+    {
+        $type = $table->string("{$name}_type");
+
+        $id = match (config('reportable.morph_id_type', 'numeric')) {
+            'uuid' => $table->uuid("{$name}_id"),
+            'ulid' => $table->ulid("{$name}_id"),
+            'string' => $table->string("{$name}_id"),
+            default => $table->unsignedBigInteger("{$name}_id"),
+        };
+
+        if ($nullable) {
+            $type->nullable();
+            $id->nullable();
+        }
+    }
+};

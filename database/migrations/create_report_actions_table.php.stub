@@ -1,0 +1,49 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create(config('reportable.table_names.report_actions', 'report_actions'), function (Blueprint $table) {
+            $reportsTable = config('reportable.table_names.reports', 'reports');
+
+            match (config('reportable.id_type', 'id')) {
+                'uuid' => $table->uuid('id')->primary(),
+                'ulid' => $table->ulid('id')->primary(),
+                default => $table->id(),
+            };
+
+            match (config('reportable.id_type', 'id')) {
+                'uuid' => $table->foreignUuid('report_id')->constrained($reportsTable)->cascadeOnDelete(),
+                'ulid' => $table->foreignUlid('report_id')->constrained($reportsTable)->cascadeOnDelete(),
+                default => $table->foreignId('report_id')->constrained($reportsTable)->cascadeOnDelete(),
+            };
+
+            $table->string('action')->index();
+
+            $table->string('performed_by_type')->nullable();
+            match (config('reportable.morph_id_type', 'numeric')) {
+                'uuid' => $table->uuid('performed_by_id')->nullable(),
+                'ulid' => $table->ulid('performed_by_id')->nullable(),
+                'string' => $table->string('performed_by_id')->nullable(),
+                default => $table->unsignedBigInteger('performed_by_id')->nullable(),
+            };
+
+            $table->text('notes')->nullable();
+            $table->json('metadata')->nullable();
+
+            $table->timestamp('created_at')->nullable();
+
+            $table->index(['performed_by_type', 'performed_by_id']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists(config('reportable.table_names.report_actions', 'report_actions'));
+    }
+};

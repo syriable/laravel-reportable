@@ -1,0 +1,14 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - src
+        - config
+        - database
+    tmpDir: build/phpstan
+    checkModelProperties: true
+    ignoreErrors:
+        # Package traits are consumed by host applications, not by the package itself.
+        - identifier: trait.unused
